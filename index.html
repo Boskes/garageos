@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GarageOS</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    :root {
+      --sidebar-bg: #1a1f2e;
+      --sidebar-hover: #252d42;
+      --accent: #f97316;
+      --accent2: #3b82f6;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --success: #22c55e;
+      --warning: #eab308;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+    /* SIDEBAR */
+    #sidebar {
+      width: 240px; background: var(--sidebar-bg); color: #fff;
+      display: flex; flex-direction: column; flex-shrink: 0;
+    }
+    #sidebar .logo {
+      padding: 20px 16px; border-bottom: 1px solid #2d3650;
+      display: flex; align-items: center; gap: 10px;
+    }
+    #sidebar .logo i { color: var(--accent); font-size: 22px; }
+    #sidebar .logo span { font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+    #sidebar .logo small { display: block; font-size: 11px; color: #94a3b8; }
+    #sidebar nav { flex: 1; padding: 12px 0; }
+    #sidebar nav a {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 20px; color: #94a3b8; text-decoration: none;
+      font-size: 14px; font-weight: 500; transition: all 0.15s; cursor: pointer;
+      border-left: 3px solid transparent;
+    }
+    #sidebar nav a:hover, #sidebar nav a.active {
+      background: var(--sidebar-hover); color: #fff;
+      border-left-color: var(--accent);
+    }
+    #sidebar nav a i { width: 18px; text-align: center; }
+    #sidebar .mic-btn {
+      margin: 12px 16px; padding: 10px;
+      background: #252d42; border: none; border-radius: 8px;
+      color: #94a3b8; cursor: pointer; font-size: 13px;
+      display: flex; align-items: center; gap: 8px; transition: all 0.15s;
+    }
+    #sidebar .mic-btn:hover { background: var(--accent); color: #fff; }
+    #sidebar .mic-btn.listening { background: var(--danger); color: #fff; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+    /* MAIN */
+    #main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    #topbar {
+      background: var(--card); border-bottom: 1px solid var(--border);
+      padding: 0 24px; height: 60px; display: flex; align-items: center;
+      justify-content: space-between; flex-shrink: 0;
+    }
+    #topbar h1 { font-size: 18px; font-weight: 600; }
+    #topbar .actions { display: flex; gap: 10px; }
+    .content { flex: 1; overflow-y: auto; padding: 24px; }
+
+    /* CARDS */
+    .card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .card-header h2 { font-size: 16px; font-weight: 600; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat { background: var(--card); border-radius: 12px; border: 1px solid var(--border); padding: 20px; }
+    .stat .label { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat .value { font-size: 28px; font-weight: 700; }
+    .stat .icon { float: right; font-size: 24px; opacity: 0.2; }
+
+    /* BUTTONS */
+    .btn { padding: 9px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; transition: all 0.15s; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #ea6c08; }
+    .btn-blue { background: var(--accent2); color: #fff; }
+    .btn-blue:hover { background: #2563eb; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { background: var(--bg); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    /* TABLE */
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { text-align: left; padding: 10px 12px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+    td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:hover td { background: #f8fafc; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-orange { background: #fff7ed; color: #9a3412; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    .badge-gray { background: #f1f5f9; color: #475569; }
+
+    /* FORMS */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1/-1; }
+    label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    input, select, textarea {
+      padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+      font-size: 14px; color: var(--text); background: #fff; transition: border 0.15s;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent2); }
+
+    /* SCAN AREA */
+    .scan-drop {
+      border: 2px dashed var(--border); border-radius: 12px; padding: 40px;
+      text-align: center; cursor: pointer; transition: all 0.15s;
+    }
+    .scan-drop:hover, .scan-drop.dragover { border-color: var(--accent); background: #fff7ed; }
+    .scan-drop i { font-size: 40px; color: var(--muted); margin-bottom: 12px; }
+    .scan-drop p { color: var(--muted); font-size: 14px; }
+
+    /* PARTS */
+    .parts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+    .part-item {
+      border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+      cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 10px;
+    }
+    .part-item:hover { border-color: var(--accent); }
+    .part-item.selected { border-color: var(--accent); background: #fff7ed; }
+    .part-item input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+    .part-item .part-info { flex: 1; }
+    .part-item .part-name { font-size: 13px; font-weight: 600; }
+    .part-item .part-price { font-size: 12px; color: var(--muted); }
+    .category-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .tab { padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border); font-size: 13px; cursor: pointer; transition: all 0.15s; background: #fff; }
+    .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* WHATSAPP */
+    .wa-preview {
+      background: #e7fdb9; border-radius: 12px; padding: 16px;
+      font-family: monospace; font-size: 13px; line-height: 1.6;
+      white-space: pre-wrap; border: 1px solid #c3e88d; max-height: 300px; overflow-y: auto;
+    }
+    .wa-status {
+      display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+      border-radius: 8px; font-size: 14px; font-weight: 500; margin-top: 12px;
+    }
+    .wa-status.waiting { background: #fef9c3; color: #854d0e; }
+    .wa-status.confirmed { background: #dcfce7; color: #166534; }
+
+    /* VOICE */
+    .voice-panel {
+      background: var(--sidebar-bg); border-radius: 12px; padding: 20px;
+      color: #fff; margin-bottom: 16px;
+    }
+    .voice-viz { display: flex; align-items: center; gap: 4px; height: 40px; margin: 12px 0; }
+    .voice-bar { width: 4px; border-radius: 2px; background: var(--accent); transition: height 0.1s; }
+    .voice-text { background: #252d42; border-radius: 8px; padding: 12px; font-size: 14px; color: #94a3b8; min-height: 44px; }
+    .voice-cmds { margin-top: 12px; }
+    .voice-cmds .cmd { display: flex; align-items: center; gap: 8px; padding: 8px 0; font-size: 13px; border-bottom: 1px solid #2d3650; }
+    .voice-cmds .cmd:last-child { border: none; }
+    .voice-cmds .cmd code { background: #252d42; padding: 2px 8px; border-radius: 4px; font-size: 12px; color: var(--accent); }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal { background: #fff; border-radius: 16px; padding: 24px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; }
+    .modal h2 { font-size: 18px; margin-bottom: 20px; }
+
+    /* TOAST */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 2000;
+      background: #1a1f2e; color: #fff; padding: 12px 20px;
+      border-radius: 10px; font-size: 14px; font-weight: 500;
+      transform: translateY(100px); opacity: 0; transition: all 0.3s;
+      display: flex; align-items: center; gap: 8px;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+
+    /* AI THINKING */
+    .ai-thinking { display: flex; align-items: center; gap: 8px; color: var(--accent2); font-size: 13px; }
+    .dots span { animation: blink 1.2s infinite; }
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
+
+    .section { display: none; }
+    .section.active { display: block; }
+    .vehicle-card { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; gap: 16px; margin-bottom: 10px; cursor: pointer; transition: all 0.15s; background: #fff; }
+    .vehicle-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(249,115,22,0.1); }
+    .vehicle-card .plate { background: #f59e0b; color: #fff; font-weight: 700; font-size: 14px; padding: 4px 10px; border-radius: 4px; min-width: 90px; text-align: center; }
+    .vehicle-card .info { flex: 1; }
+    .vehicle-card .info .model { font-weight: 600; font-size: 14px; }
+    .vehicle-card .info .owner { font-size: 12px; color: var(--muted); }
+    .total-bar { background: var(--sidebar-bg); color: #fff; border-radius: 10px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .total-bar .amount { font-size: 22px; font-weight: 700; color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="logo">
+    <i class="fa-solid fa-wrench"></i>
+    <div>
+      <span>GarageOS</span>
+      <small>Garagebeheer systeem</small>
+    </div>
+  </div>
+  <nav>
+    <a onclick="showSection('dashboard')" class="active" id="nav-dashboard"><i class="fa-solid fa-gauge-high"></i> Dashboard</a>
+    <a onclick="showSection('klanten')" id="nav-klanten"><i class="fa-solid fa-users"></i> Klanten</a>
+    <a onclick="showSection('voertuigen')" id="nav-voertuigen"><i class="fa-solid fa-car"></i> Voertuigen</a>
+    <a onclick="showSection('onderhoud')" id="nav-onderhoud"><i class="fa-solid fa-screwdriver-wrench"></i> Onderhoud</a>
+    <a onclick="showSection('whatsapp')" id="nav-whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>
+    <a onclick="showSection('spraak')" id="nav-spraak"><i class="fa-solid fa-microphone"></i> Spraakbediening</a>
+  </nav>
+  <button class="mic-btn" id="micBtn" onclick="toggleVoice()">
+    <i class="fa-solid fa-microphone" id="micIcon"></i>
+    <span id="micLabel">Spraak activeren</span>
+  </button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="topbar">
+    <h1 id="pageTitle">Dashboard</h1>
+    <div class="actions">
+      <button class="btn btn-outline btn-sm" onclick="showSection('klanten')"><i class="fa-solid fa-plus"></i> Nieuwe klant</button>
+      <button class="btn btn-primary btn-sm" onclick="showSection('onderhoud')"><i class="fa-solid fa-wrench"></i> Onderhoud starten</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="section-dashboard">
+      <div class="stat-grid">
+        <div class="stat">
+          <div class="icon"><i class="fa-solid fa-users"></i></div>
+          <div class="label">Klanten</div>
+          <div class="value" style="color:var(--accent2)">24</div>
+        </div>
+        <div class="stat">
+          <div class="icon"><i class="fa-solid fa-car"></i></div>
+          <div class="label">Voertuigen</div>
+          <div class="value" style="color:var(--accent)">31</div>
+        </div>
+        <div class="stat">
+          <div class="icon"><i class="fa-solid fa-wrench"></i></div>
+          <div class="label">Open werkopdrachten</div>
+          <div class="value" style="color:var(--warning)">7</div>
+        </div>
+        <div class="stat">
+          <div class="icon"><i class="fa-solid fa-euro-sign"></i></div>
+          <div class="label">Omzet vandaag</div>
+          <div class="value" style="color:var(--success)">€842</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fa-solid fa-clock" style="color:var(--accent)"></i> Recente opdrachten</h2>
+        </div>
+        <table>
+          <thead><tr><th>Nummerplaat</th><th>Voertuig</th><th>Klant</th><th>Werkzaamheden</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-orange">1-ABC-234</span></td><td>VW Golf VIII (2021)</td><td>Jan Peeters</td><td>Oliewissel + remmen</td><td><span class="badge badge-green">Klaar</span></td></tr>
+            <tr><td><span class="badge badge-orange">2-DEF-567</span></td><td>Renault Clio (2019)</td><td>Marie Janssen</td><td>Banden wisselen</td><td><span class="badge badge-orange">Bezig</span></td></tr>
+            <tr><td><span class="badge badge-orange">3-GHI-890</span></td><td>BMW 3 Serie (2020)</td><td>Tom Declercq</td><td>APK keuring</td><td><span class="badge badge-blue">Gepland</span></td></tr>
+            <tr><td><span class="badge badge-orange">4-JKL-123</span></td><td>Ford Focus (2018)</td><td>Sara Willems</td><td>Riem + vloeistoffen</td><td><span class="badge badge-orange">Wacht op onderdelen</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2><i class="fa-brands fa-whatsapp" style="color:#25d366"></i> Openstaande WhatsApp bevestigingen</h2></div>
+        <table>
+          <thead><tr><th>Klant</th><th>Voertuig</th><th>Bedrag</th><th>Verstuurd</th><th>Actie</th></tr></thead>
+          <tbody>
+            <tr><td>Marie Janssen</td><td>Renault Clio</td><td>€287,50</td><td>14:22</td><td><button class="btn btn-success btn-sm" onclick="showWAConfirm()">Bevestigd!</button></td></tr>
+            <tr><td>Tom Declercq</td><td>BMW 3 Serie</td><td>€543,00</td><td>15:05</td><td><span class="badge badge-gray">Wacht...</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- KLANTEN -->
+    <div class="section" id="section-klanten">
+      <div class="card">
+        <div class="card-header">
+          <h2>Klantenoverzicht</h2>
+          <button class="btn btn-primary btn-sm" onclick="openNieuweKlant()"><i class="fa-solid fa-plus"></i> Nieuwe klant</button>
+        </div>
+        <table>
+          <thead><tr><th>Naam</th><th>Telefoon</th><th>E-mail</th><th>Voertuigen</th><th>Laatste bezoek</th><th></th></tr></thead>
+          <tbody>
+            <tr><td><b>Jan Peeters</b></td><td>+32 476 12 34 56</td><td>jan.peeters@gmail.com</td><td>2</td><td>21 mrt 2026</td><td><button class="btn btn-outline btn-sm">Bekijken</button></td></tr>
+            <tr><td><b>Marie Janssen</b></td><td>+32 486 23 45 67</td><td>marie.janssen@outlook.be</td><td>1</td><td>20 mrt 2026</td><td><button class="btn btn-outline btn-sm">Bekijken</button></td></tr>
+            <tr><td><b>Tom Declercq</b></td><td>+32 496 34 56 78</td><td>tom.declercq@telenet.be</td><td>1</td><td>19 mrt 2026</td><td><button class="btn btn-outline btn-sm">Bekijken</button></td></tr>
+            <tr><td><b>Sara Willems</b></td><td>+32 468 45 67 89</td><td>sara.willems@proximus.be</td><td>2</td><td>18 mrt 2026</td><td><button class="btn btn-outline btn-sm">Bekijken</button></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- VOERTUIGEN -->
+    <div class="section" id="section-voertuigen">
+      <div class="card">
+        <div class="card-header">
+          <h2>Voertuigen</h2>
+          <button class="btn btn-primary btn-sm" onclick="openNieuweKlant()"><i class="fa-solid fa-plus"></i> Voertuig toevoegen</button>
+        </div>
+
+        <div id="voertuig-lijst">
+          <div class="vehicle-card" onclick="selecteerVoertuig('1-ABC-234','VW Golf VIII','2021','Jan Peeters',145000,'VIN1HGBH41JXMN109186')">
+            <div class="plate">1-ABC-234</div>
+            <div class="info">
+              <div class="model">VW Golf VIII — 2021</div>
+              <div class="owner"><i class="fa-solid fa-user"></i> Jan Peeters &nbsp;|&nbsp; 145.000 km &nbsp;|&nbsp; VIN: 1HGBH41JXMN109186</div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();selecteerVoertuig('1-ABC-234','VW Golf VIII','2021','Jan Peeters',145000,'VIN1HGBH41JXMN109186');showSection('onderhoud')"><i class="fa-solid fa-wrench"></i> Onderhoud</button>
+          </div>
+          <div class="vehicle-card" onclick="selecteerVoertuig('2-DEF-567','Renault Clio','2019','Marie Janssen',89000,'VIN2HGBH41JXMN209187')">
+            <div class="plate">2-DEF-567</div>
+            <div class="info">
+              <div class="model">Renault Clio — 2019</div>
+              <div class="owner"><i class="fa-solid fa-user"></i> Marie Janssen &nbsp;|&nbsp; 89.000 km &nbsp;|&nbsp; VIN: 2HGBH41JXMN209187</div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();selecteerVoertuig('2-DEF-567','Renault Clio','2019','Marie Janssen',89000,'VIN2HGBH41JXMN209187');showSection('onderhoud')"><i class="fa-solid fa-wrench"></i> Onderhoud</button>
+          </div>
+          <div class="vehicle-card" onclick="selecteerVoertuig('3-GHI-890','BMW 3 Serie','2020','Tom Declercq',67000,'VIN3HGBH41JXMN309188')">
+            <div class="plate">3-GHI-890</div>
+            <div class="info">
+              <div class="model">BMW 3 Serie — 2020</div>
+              <div class="owner"><i class="fa-solid fa-user"></i> Tom Declercq &nbsp;|&nbsp; 67.000 km &nbsp;|&nbsp; VIN: 3HGBH41JXMN309188</div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();selecteerVoertuig('3-GHI-890','BMW 3 Serie','2020','Tom Declercq',67000,'VIN3HGBH41JXMN309188');showSection('onderhoud')"><i class="fa-solid fa-wrench"></i> Onderhoud</button>
+          </div>
+          <div class="vehicle-card" onclick="selecteerVoertuig('4-JKL-123','Ford Focus','2018','Sara Willems',203000,'VIN4HGBH41JXMN409189')">
+            <div class="plate">4-JKL-123</div>
+            <div class="info">
+              <div class="model">Ford Focus — 2018</div>
+              <div class="owner"><i class="fa-solid fa-user"></i> Sara Willems &nbsp;|&nbsp; 203.000 km &nbsp;|&nbsp; VIN: 4HGBH41JXMN409189</div>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();selecteerVoertuig('4-JKL-123','Ford Focus','2018','Sara Willems',203000,'VIN4HGBH41JXMN409189');showSection('onderhoud')"><i class="fa-solid fa-wrench"></i> Onderhoud</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ONDERHOUD -->
+    <div class="section" id="section-onderhoud">
+      <div class="card" id="voertuig-info-card">
+        <div class="card-header">
+          <h2><i class="fa-solid fa-car" style="color:var(--accent)"></i> Geselecteerd voertuig</h2>
+          <button class="btn btn-outline btn-sm" onclick="showSection('voertuigen')"><i class="fa-solid fa-arrow-left"></i> Kies ander voertuig</button>
+        </div>
+        <div id="voertuig-info-display" style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;">
+          <div style="background:#f59e0b;color:#fff;font-weight:700;font-size:18px;padding:8px 16px;border-radius:6px" id="disp-plate">—</div>
+          <div><div style="font-weight:600;font-size:15px" id="disp-model">Selecteer een voertuig</div><div style="color:var(--muted);font-size:13px" id="disp-details">Ga naar het voertuigenoverzicht</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Onderdelen selecteren</h2>
+          <button class="btn btn-blue btn-sm" id="aiAdviesBtn" onclick="aiAdvies()"><i class="fa-solid fa-robot"></i> AI Advies</button>
+        </div>
+        <div id="ai-thinking-area" style="display:none;margin-bottom:12px">
+          <div class="ai-thinking"><i class="fa-solid fa-robot"></i> AI analyseert voertuig<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
+        </div>
+        <div id="ai-advice-result" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px"></div>
+
+        <div class="category-tabs" id="cat-tabs">
+          <div class="tab active" onclick="filterCat('Alle')">Alle</div>
+          <div class="tab" onclick="filterCat('Motor')">🛢️ Motor</div>
+          <div class="tab" onclick="filterCat('Remmen')">🔴 Remmen</div>
+          <div class="tab" onclick="filterCat('Banden')">⚫ Banden</div>
+          <div class="tab" onclick="filterCat('Filters')">🌀 Filters</div>
+          <div class="tab" onclick="filterCat('Vloeistoffen')">💧 Vloeistoffen</div>
+          <div class="tab" onclick="filterCat('Overig')">🔩 Overig</div>
+        </div>
+
+        <div class="parts-grid" id="parts-grid"></div>
+
+        <div class="total-bar">
+          <div>
+            <div style="font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px">Totaal geselecteerde onderdelen</div>
+            <div style="font-size:13px;color:#94a3b8" id="parts-count">0 onderdelen geselecteerd</div>
+          </div>
+          <div class="amount" id="total-amount">€ 0,00</div>
+        </div>
+
+        <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="stuurWhatsApp()"><i class="fa-brands fa-whatsapp"></i> Stuur naar klant via WhatsApp</button>
+          <button class="btn btn-outline" onclick="deselectAll()"><i class="fa-solid fa-times"></i> Alles deselecteren</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- WHATSAPP -->
+    <div class="section" id="section-whatsapp">
+      <div class="card">
+        <div class="card-header">
+          <h2><i class="fa-brands fa-whatsapp" style="color:#25d366"></i> WhatsApp communicatie</h2>
+        </div>
+
+        <div id="wa-empty" style="text-align:center;padding:40px;color:var(--muted)">
+          <i class="fa-solid fa-comments" style="font-size:48px;margin-bottom:16px;display:block"></i>
+          <p>Selecteer eerst onderdelen bij een voertuig en klik op "Stuur naar klant via WhatsApp"</p>
+          <button class="btn btn-outline" style="margin-top:16px" onclick="showSection('onderhoud')">Naar onderhoud</button>
+        </div>
+
+        <div id="wa-content" style="display:none">
+          <div style="margin-bottom:16px">
+            <label>Voorbeeldweergave bericht</label>
+            <div class="wa-preview" id="wa-preview-text"></div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+            <button class="btn btn-success" onclick="verstuurWA()"><i class="fa-brands fa-whatsapp"></i> Versturen via WhatsApp</button>
+            <button class="btn btn-outline" onclick="showSection('onderhoud')"><i class="fa-solid fa-arrow-left"></i> Terug aanpassen</button>
+          </div>
+          <div id="wa-status-area"></div>
+          <div id="wa-sim-btn-area" style="display:none;margin-top:12px">
+            <p style="font-size:13px;color:var(--muted);margin-bottom:8px">Simuleer klantreactie:</p>
+            <button class="btn btn-success" onclick="klantBevestigt()"><i class="fa-solid fa-check"></i> Klant stuurt "JA"</button>
+            <button class="btn btn-outline" style="margin-left:8px" onclick="klantWeigert()"><i class="fa-solid fa-times"></i> Klant weigert</button>
+          </div>
+          <div id="wa-order-result" style="display:none"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPRAAK -->
+    <div class="section" id="section-spraak">
+      <div class="voice-panel">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:16px;font-weight:600;margin-bottom:4px"><i class="fa-solid fa-microphone" style="color:var(--accent)"></i> Spraakbediening</div>
+            <div style="font-size:13px;color:#94a3b8">Spreek een opdracht in het Nederlands</div>
+          </div>
+          <button class="btn btn-primary" id="bigMicBtn" onclick="toggleVoice()">
+            <i class="fa-solid fa-microphone" id="bigMicIcon"></i> <span id="bigMicLabel">Activeren</span>
+          </button>
+        </div>
+        <div class="voice-viz" id="voiceViz">
+          <div class="voice-bar" id="b1" style="height:8px"></div>
+          <div class="voice-bar" id="b2" style="height:14px"></div>
+          <div class="voice-bar" id="b3" style="height:22px"></div>
+          <div class="voice-bar" id="b4" style="height:10px"></div>
+          <div class="voice-bar" id="b5" style="height:18px"></div>
+          <div class="voice-bar" id="b6" style="height:8px"></div>
+          <div class="voice-bar" id="b7" style="height:28px"></div>
+          <div class="voice-bar" id="b8" style="height:12px"></div>
+        </div>
+        <div class="voice-text" id="voiceText">Klik op "Activeren" en spreek een opdracht...</div>
+        <div id="voiceAction" style="margin-top:8px;font-size:13px;color:#22c55e;display:none">
+          <i class="fa-solid fa-check-circle"></i> <span id="voiceActionText"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Beschikbare spraakcommando's</h2></div>
+        <div class="voice-cmds">
+          <div class="cmd"><code>"Nieuwe klant"</code> <span>→ Open nieuw klantformulier</span></div>
+          <div class="cmd"><code>"Toon voertuigen"</code> <span>→ Navigeer naar voertuigen</span></div>
+          <div class="cmd"><code>"Start onderhoud"</code> <span>→ Open onderhoudspagina</span></div>
+          <div class="cmd"><code>"Dashboard"</code> <span>→ Terug naar overzicht</span></div>
+          <div class="cmd"><code>"WhatsApp"</code> <span>→ Open WhatsApp berichten</span></div>
+          <div class="cmd"><code>"Klanten"</code> <span>→ Open klantenlijst</span></div>
+          <div class="cmd"><code>"AI advies"</code> <span>→ Vraag AI onderhoud advies</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h2>Demo modus — Typ een commando</h2></div>
+        <div style="display:flex;gap:10px">
+          <input type="text" id="voiceSimInput" placeholder="Typ bijv. 'nieuwe klant' of 'toon voertuigen'..." style="flex:1"/>
+          <button class="btn btn-primary" onclick="simVoice()">Uitvoeren</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- MODALS -->
+<!-- Nieuwe Klant Modal -->
+<div id="modalNieuweKlant" style="display:none">
+  <div class="modal-overlay" onclick="closeModal('modalNieuweKlant')">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h2><i class="fa-solid fa-user-plus" style="color:var(--accent)"></i> Nieuwe klant toevoegen</h2>
+
+      <!-- Scan sectie -->
+      <div style="margin-bottom:20px">
+        <label style="display:block;margin-bottom:8px">Inschrijvingsbewijs scannen (optioneel)</label>
+        <div class="scan-drop" id="scanDrop" onclick="document.getElementById('scanFile').click()"
+             ondragover="event.preventDefault();this.classList.add('dragover')"
+             ondragleave="this.classList.remove('dragover')"
+             ondrop="handleDrop(event)">
+          <i class="fa-solid fa-camera"></i>
+          <p><b>Klik om foto te maken of sleep een afbeelding</b></p>
+          <p style="font-size:12px;margin-top:4px">JPG, PNG, PDF ondersteund — AI leest automatisch alle gegevens</p>
+          <input type="file" id="scanFile" accept="image/*" style="display:none" onchange="scanDocument(this)"/>
+        </div>
+        <div id="scanStatus" style="display:none;margin-top:8px"></div>
+      </div>
+
+      <div class="form-grid" id="klantForm">
+        <div class="form-group full"><h3 style="font-size:14px;font-weight:600;color:var(--muted);margin-bottom:4px">KLANTGEGEVENS</h3></div>
+        <div class="form-group"><label>Voornaam</label><input id="f-voornaam" placeholder="Jan"/></div>
+        <div class="form-group"><label>Achternaam</label><input id="f-achternaam" placeholder="Peeters"/></div>
+        <div class="form-group"><label>Telefoon</label><input id="f-tel" placeholder="+32 476 00 00 00"/></div>
+        <div class="form-group"><label>E-mail</label><input id="f-email" placeholder="jan@email.be"/></div>
+
+        <div class="form-group full" style="margin-top:8px"><h3 style="font-size:14px;font-weight:600;color:var(--muted);margin-bottom:4px">VOERTUIGGEGEVENS</h3></div>
+        <div class="form-group"><label>Nummerplaat</label><input id="f-plate" placeholder="1-ABC-234"/></div>
+        <div class="form-group"><label>Merk</label><input id="f-merk" placeholder="Volkswagen"/></div>
+        <div class="form-group"><label>Model</label><input id="f-model" placeholder="Golf VIII"/></div>
+        <div class="form-group"><label>Jaar</label><input id="f-jaar" placeholder="2021"/></div>
+        <div class="form-group"><label>VIN</label><input id="f-vin" placeholder="WVWZZZ1JZXW000001"/></div>
+        <div class="form-group"><label>Kilometerstand</label><input id="f-km" placeholder="87500"/></div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closeModal('modalNieuweKlant')">Annuleren</button>
+        <button class="btn btn-primary" onclick="slaKlantOp()"><i class="fa-solid fa-save"></i> Klant opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"><i class="fa-solid fa-check-circle"></i> <span id="toastMsg"></span></div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+let currentVoertuig = null;
+let selectedParts = {};
+let voiceActive = false;
+let voiceInterval = null;
+let recognition = null;
+
+const allParts = [
+  {id:'oil',cat:'Motor',name:'Motorolie (5W-30)',price:45.00,icon:'🛢️'},
+  {id:'oilfilter',cat:'Filters',name:'Oliefilter',price:18.50,icon:'🌀'},
+  {id:'airfilter',cat:'Filters',name:'Luchtfilter',price:24.00,icon:'🌀'},
+  {id:'fuelfilter',cat:'Filters',name:'Brandstoffilter',price:32.00,icon:'🌀'},
+  {id:'cabinfilter',cat:'Filters',name:'Interieurfilter',price:28.00,icon:'🌀'},
+  {id:'sparkplug',cat:'Motor',name:'Bougies (set 4)',price:56.00,icon:'⚡'},
+  {id:'brakefront',cat:'Remmen',name:'Remblokken voor',price:89.00,icon:'🔴'},
+  {id:'brakerear',cat:'Remmen',name:'Remblokken achter',price:79.00,icon:'🔴'},
+  {id:'brakedisc',cat:'Remmen',name:'Remschijven (set 2)',price:145.00,icon:'🔴'},
+  {id:'tyre195',cat:'Banden',name:'Band 195/65 R15',price:87.00,icon:'⚫'},
+  {id:'tyre205',cat:'Banden',name:'Band 205/55 R16',price:98.00,icon:'⚫'},
+  {id:'tyre225',cat:'Banden',name:'Band 225/45 R17',price:124.00,icon:'⚫'},
+  {id:'coolant',cat:'Vloeistoffen',name:'Koelvloeistof (2L)',price:22.00,icon:'💧'},
+  {id:'brake_fluid',cat:'Vloeistoffen',name:'Remvloeistof DOT4',price:16.00,icon:'💧'},
+  {id:'powersteering',cat:'Vloeistoffen',name:'Stuurbekrachtigingsvloeistof',price:19.00,icon:'💧'},
+  {id:'timing',cat:'Motor',name:'Distributieriem',price:185.00,icon:'⚙️'},
+  {id:'battery',cat:'Overig',name:'Accu 12V 70Ah',price:129.00,icon:'🔋'},
+  {id:'wiper',cat:'Overig',name:'Ruitenwisserbladen (set)',price:34.00,icon:'🧹'},
+  {id:'labour',cat:'Overig',name:'Arbeidskosten (1u)',price:75.00,icon:'👷'},
+];
+
+let currentCat = 'Alle';
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('#sidebar nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById('section-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  const titles = {dashboard:'Dashboard',klanten:'Klanten',voertuigen:'Voertuigen',onderhoud:'Onderhoud',whatsapp:'WhatsApp',spraak:'Spraakbediening'};
+  document.getElementById('pageTitle').textContent = titles[name] || name;
+  if (name === 'onderhoud') renderParts();
+}
+
+// ============================================================
+// VOERTUIG SELECTIE
+// ============================================================
+function selecteerVoertuig(plate, model, jaar, owner, km, vin) {
+  currentVoertuig = {plate, model, jaar, owner, km, vin};
+  document.getElementById('disp-plate').textContent = plate;
+  document.getElementById('disp-model').textContent = model + ' (' + jaar + ')';
+  document.getElementById('disp-details').textContent = owner + ' · ' + km.toLocaleString('nl-BE') + ' km · VIN: ' + vin;
+  selectedParts = {};
+  document.getElementById('ai-advice-result').style.display = 'none';
+  showToast('Voertuig geselecteerd: ' + plate);
+}
+
+// ============================================================
+// PARTS
+// ============================================================
+function filterCat(cat) {
+  currentCat = cat;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderParts();
+}
+
+function renderParts() {
+  const grid = document.getElementById('parts-grid');
+  const parts = currentCat === 'Alle' ? allParts : allParts.filter(p => p.cat === currentCat);
+  grid.innerHTML = parts.map(p => `
+    <div class="part-item ${selectedParts[p.id] ? 'selected' : ''}" onclick="togglePart('${p.id}')">
+      <input type="checkbox" ${selectedParts[p.id] ? 'checked' : ''} onclick="event.stopPropagation();togglePart('${p.id}')"/>
+      <div class="part-info">
+        <div class="part-name">${p.icon} ${p.name}</div>
+        <div class="part-price">€ ${p.price.toFixed(2).replace('.',',')} · ${p.cat}</div>
+      </div>
+    </div>
+  `).join('');
+  updateTotal();
+}
+
+function togglePart(id) {
+  if (selectedParts[id]) delete selectedParts[id];
+  else selectedParts[id] = allParts.find(p => p.id === id);
+  renderParts();
+}
+
+function deselectAll() {
+  selectedParts = {};
+  renderParts();
+}
+
+function updateTotal() {
+  const parts = Object.values(selectedParts);
+  const total = parts.reduce((sum, p) => sum + p.price, 0);
+  const count = parts.length;
+  document.getElementById('total-amount').textContent = '€ ' + total.toFixed(2).replace('.', ',');
+  document.getElementById('parts-count').textContent = count + ' onderdeel' + (count !== 1 ? 'en' : '') + ' geselecteerd';
+}
+
+// ============================================================
+// AI ADVIES
+// ============================================================
+function aiAdvies() {
+  if (!currentVoertuig) { showToast('Selecteer eerst een voertuig'); return; }
+  const area = document.getElementById('ai-thinking-area');
+  const result = document.getElementById('ai-advice-result');
+  area.style.display = 'block';
+  result.style.display = 'none';
+
+  setTimeout(() => {
+    area.style.display = 'none';
+    const v = currentVoertuig;
+    let advice = [];
+    let autoSelect = [];
+
+    if (v.km > 100000) { advice.push('🛢️ <b>Oliewissel aanbevolen</b> — voertuig heeft meer dan 100.000 km'); autoSelect.push('oil','oilfilter'); }
+    if (v.km > 150000) { advice.push('⚙️ <b>Distributieriem controleren</b> — kritisch bij ' + v.km.toLocaleString('nl-BE') + ' km'); autoSelect.push('timing'); }
+    if (v.km > 80000) { advice.push('🔴 <b>Remblokken nakijken</b> — gebruikelijk vervanging interval bereikt'); autoSelect.push('brakefront'); }
+    if (v.km > 120000) { advice.push('🌀 <b>Alle filters vervangen</b> — standaard onderhoudsbeurt'); autoSelect.push('airfilter','cabinfilter','fuelfilter'); }
+    if (parseInt(v.jaar) < 2020) { advice.push('🔋 <b>Accu checken</b> — voertuig is ouder dan 4 jaar'); autoSelect.push('battery'); }
+    if (advice.length === 0) { advice.push('✅ Voertuig is relatief nieuw en heeft weinig km — standaard oliewissel aanbevolen.'); autoSelect.push('oil','oilfilter'); }
+
+    // auto-select advised parts
+    autoSelect.forEach(id => { const p = allParts.find(x => x.id === id); if(p) selectedParts[id] = p; });
+
+    result.innerHTML = `<div style="font-weight:600;margin-bottom:8px;color:var(--accent2)"><i class="fa-solid fa-robot"></i> AI Onderhoudsadvies voor ${v.model} (${v.jaar}) — ${v.km.toLocaleString('nl-BE')} km</div>` + advice.map(a => `<div style="margin-bottom:6px">• ${a}</div>`).join('') + `<div style="margin-top:8px;font-size:12px;color:var(--muted)">Aanbevolen onderdelen zijn automatisch geselecteerd.</div>`;
+    result.style.display = 'block';
+    renderParts();
+    showToast('AI advies klaar — ' + autoSelect.length + ' onderdelen geselecteerd');
+  }, 2200);
+}
+
+// ============================================================
+// WHATSAPP
+// ============================================================
+function stuurWhatsApp() {
+  const parts = Object.values(selectedParts);
+  if (parts.length === 0) { showToast('Selecteer eerst onderdelen'); return; }
+  if (!currentVoertuig) { showToast('Geen voertuig geselecteerd'); return; }
+
+  const total = parts.reduce((sum, p) => sum + p.price, 0);
+  const datum = new Date().toLocaleDateString('nl-BE', {day:'numeric',month:'long',year:'numeric'});
+  const partsList = parts.map(p => `  • ${p.name} — €${p.price.toFixed(2).replace('.',',')}`).join('\n');
+
+  const msg = `Goedemiddag ${currentVoertuig.owner.split(' ')[0]},
+
+Hierbij het overzicht van de geplande werkzaamheden voor uw voertuig:
+
+🚗 Voertuig: ${currentVoertuig.model} (${currentVoertuig.jaar})
+🔢 Nummerplaat: ${currentVoertuig.plate}
+📅 Datum: ${datum}
+
+📋 Te vervangen onderdelen:
+${partsList}
+
+──────────────────
+💶 Totaalprijs: €${total.toFixed(2).replace('.',',')} (incl. BTW)
+
+Bevestigt u de opdracht met *JA*?
+
+Met vriendelijke groeten,
+Garage Team 🔧`;
+
+  document.getElementById('wa-preview-text').textContent = msg;
+  document.getElementById('wa-empty').style.display = 'none';
+  document.getElementById('wa-content').style.display = 'block';
+  document.getElementById('wa-status-area').innerHTML = '';
+  document.getElementById('wa-sim-btn-area').style.display = 'none';
+  document.getElementById('wa-order-result').style.display = 'none';
+  showSection('whatsapp');
+}
+
+function verstuurWA() {
+  document.getElementById('wa-status-area').innerHTML = `
+    <div class="wa-status waiting">
+      <i class="fa-brands fa-whatsapp" style="color:#25d366;font-size:18px"></i>
+      Bericht verstuurd naar ${currentVoertuig?.owner || 'klant'} — Wacht op bevestiging...
+      <span class="dots"><span>.</span><span>.</span><span>.</span></span>
+    </div>`;
+  document.getElementById('wa-sim-btn-area').style.display = 'block';
+  showToast('WhatsApp bericht verstuurd!');
+}
+
+function klantBevestigt() {
+  document.getElementById('wa-status-area').innerHTML = `
+    <div class="wa-status confirmed">
+      <i class="fa-solid fa-check-circle" style="font-size:18px"></i>
+      Klant heeft bevestigd met "JA" — Bestelling geplaatst!
+    </div>`;
+  document.getElementById('wa-sim-btn-area').style.display = 'none';
+  const parts = Object.values(selectedParts);
+  const total = parts.reduce((sum, p) => sum + p.price, 0);
+  document.getElementById('wa-order-result').style.display = 'block';
+  document.getElementById('wa-order-result').innerHTML = `
+    <div style="margin-top:16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px">
+      <div style="font-weight:700;color:#166534;margin-bottom:8px">✅ Bestelling geplaatst</div>
+      <div style="font-size:13px;color:#166534">
+        ${parts.length} onderdeel${parts.length!==1?'en':''} besteld voor ${currentVoertuig?.plate} · Totaal: €${total.toFixed(2).replace('.',',')}
+      </div>
+    </div>`;
+  showToast('Bestelling bevestigd en geplaatst!');
+}
+
+function klantWeigert() {
+  document.getElementById('wa-status-area').innerHTML = `
+    <div class="wa-status" style="background:#fee2e2;color:#991b1b">
+      <i class="fa-solid fa-times-circle" style="font-size:18px"></i>
+      Klant heeft geweigerd — Geen bestelling geplaatst.
+    </div>`;
+  document.getElementById('wa-sim-btn-area').style.display = 'none';
+}
+
+function showWAConfirm() { klantBevestigt(); showToast('Klantbevestiging verwerkt!'); }
+
+// ============================================================
+// NIEUWE KLANT / SCAN
+// ============================================================
+function openNieuweKlant() {
+  ['f-voornaam','f-achternaam','f-tel','f-email','f-plate','f-merk','f-model','f-jaar','f-vin','f-km'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('scanStatus').style.display = 'none';
+  document.getElementById('modalNieuweKlant').style.display = 'block';
+}
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('scanDrop').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) simulateScan();
+}
+
+function scanDocument(input) {
+  if (input.files && input.files[0]) simulateScan();
+}
+
+function simulateScan() {
+  const status = document.getElementById('scanStatus');
+  status.style.display = 'block';
+  status.innerHTML = `<div class="ai-thinking"><i class="fa-solid fa-robot"></i> AI leest document<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>`;
+
+  const demoData = [
+    {plate:'5-KLM-456',merk:'Toyota',model:'Corolla',jaar:'2022',vin:'JTDKN3DU1A0012345',km:'34000',voornaam:'Ahmed',achternaam:'El Mansouri',tel:'+32 471 55 66 77',email:'ahmed.elmansouri@gmail.com'},
+    {plate:'6-NOP-789',merk:'Peugeot',model:'308',jaar:'2020',vin:'VF3LBHZTJKS012789',km:'78000',voornaam:'Sophie',achternaam:'Dubois',tel:'+32 496 88 11 22',email:'sophie.dubois@hotmail.com'},
+  ];
+  const d = demoData[Math.floor(Math.random() * demoData.length)];
+
+  setTimeout(() => {
+    document.getElementById('f-voornaam').value = d.voornaam;
+    document.getElementById('f-achternaam').value = d.achternaam;
+    document.getElementById('f-tel').value = d.tel;
+    document.getElementById('f-email').value = d.email;
+    document.getElementById('f-plate').value = d.plate;
+    document.getElementById('f-merk').value = d.merk;
+    document.getElementById('f-model').value = d.model;
+    document.getElementById('f-jaar').value = d.jaar;
+    document.getElementById('f-vin').value = d.vin;
+    document.getElementById('f-km').value = d.km;
+    status.innerHTML = `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;font-size:13px;color:#166534"><i class="fa-solid fa-check-circle"></i> <b>AI scan geslaagd!</b> Nummerplaat <b>${d.plate}</b>, ${d.merk} ${d.model} (${d.jaar}), eigenaar <b>${d.voornaam} ${d.achternaam}</b> herkend.</div>`;
+    showToast('Inschrijvingsbewijs gescand!');
+  }, 2000);
+}
+
+function slaKlantOp() {
+  const naam = document.getElementById('f-voornaam').value + ' ' + document.getElementById('f-achternaam').value;
+  const plate = document.getElementById('f-plate').value;
+  if (!naam.trim() || naam.trim() === ' ') { showToast('Vul de naam in'); return; }
+  showToast('Klant ' + naam.trim() + ' opgeslagen!');
+  closeModal('modalNieuweKlant');
+}
+
+// ============================================================
+// VOICE
+// ============================================================
+function toggleVoice() {
+  if (voiceActive) {
+    stopVoice();
+  } else {
+    startVoice();
+  }
+}
+
+function startVoice() {
+  voiceActive = true;
+  document.getElementById('micBtn').classList.add('listening');
+  document.getElementById('micLabel').textContent = 'Luistert...';
+  document.getElementById('micIcon').className = 'fa-solid fa-microphone-slash';
+  document.getElementById('bigMicLabel').textContent = 'Stop';
+  document.getElementById('bigMicIcon').className = 'fa-solid fa-stop';
+  document.getElementById('voiceText').textContent = 'Luistert... spreek nu een opdracht.';
+  document.getElementById('voiceAction').style.display = 'none';
+
+  // animate bars
+  voiceInterval = setInterval(() => {
+    for (let i = 1; i <= 8; i++) {
+      const h = Math.floor(Math.random() * 32) + 6;
+      document.getElementById('b'+i).style.height = h + 'px';
+    }
+  }, 120);
+
+  // Try Web Speech API
+  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SR();
+    recognition.lang = 'nl-NL';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      document.getElementById('voiceText').textContent = '"' + text + '"';
+      handleVoiceCommand(text);
+      stopVoice();
+    };
+    recognition.onerror = () => { stopVoice(); showToast('Spraakherkenning niet beschikbaar — gebruik demo modus'); };
+    recognition.onend = () => { if (voiceActive) stopVoice(); };
+    recognition.start();
+  } else {
+    setTimeout(() => {
+      document.getElementById('voiceText').textContent = 'Web spraakherkenning niet beschikbaar in deze browser.';
+      stopVoice();
+    }, 2000);
+  }
+}
+
+function stopVoice() {
+  voiceActive = false;
+  if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+  clearInterval(voiceInterval);
+  document.getElementById('micBtn').classList.remove('listening');
+  document.getElementById('micLabel').textContent = 'Spraak activeren';
+  document.getElementById('micIcon').className = 'fa-solid fa-microphone';
+  document.getElementById('bigMicLabel').textContent = 'Activeren';
+  document.getElementById('bigMicIcon').className = 'fa-solid fa-microphone';
+  for (let i = 1; i <= 8; i++) document.getElementById('b'+i).style.height = (i%3===0?8:i%2===0?14:6)+'px';
+}
+
+function simVoice() {
+  const text = document.getElementById('voiceSimInput').value;
+  if (!text) return;
+  document.getElementById('voiceText').textContent = '"' + text + '"';
+  handleVoiceCommand(text);
+  document.getElementById('voiceSimInput').value = '';
+}
+
+function handleVoiceCommand(text) {
+  const t = text.toLowerCase();
+  let action = '';
+  if (t.includes('nieuwe klant')) { openNieuweKlant(); action = 'Nieuw klantformulier geopend'; }
+  else if (t.includes('voertuig')) { showSection('voertuigen'); action = 'Navigeren naar voertuigen'; }
+  else if (t.includes('onderhoud') || t.includes('start onderhoud')) { showSection('onderhoud'); action = 'Onderhoudspagina geopend'; }
+  else if (t.includes('dashboard') || t.includes('overzicht')) { showSection('dashboard'); action = 'Dashboard geopend'; }
+  else if (t.includes('whatsapp')) { showSection('whatsapp'); action = 'WhatsApp pagina geopend'; }
+  else if (t.includes('klant')) { showSection('klanten'); action = 'Klantenlijst geopend'; }
+  else if (t.includes('ai advies') || t.includes('advies')) { showSection('onderhoud'); aiAdvies(); action = 'AI Advies aangevraagd'; }
+  else { action = 'Opdracht niet herkend — probeer opnieuw'; }
+
+  const actionEl = document.getElementById('voiceAction');
+  actionEl.style.display = 'block';
+  document.getElementById('voiceActionText').textContent = action;
+  showToast('Spraakcommando: ' + action);
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+// Init
+renderParts();
+</script>
+</body>
+</html>
