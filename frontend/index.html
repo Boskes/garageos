@@ -715,7 +715,16 @@ Garage Team 🔧`;
   showSection('whatsapp');
 }
 
-function verstuurWA() {
+async function verstuurWA() {
+  const previewText = document.getElementById('wa-preview-text').textContent;
+  // Sla op in DB
+  try {
+    await fetch('/api/whatsapp/stuur', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ bericht: previewText })
+    });
+  } catch(e) { console.warn('WA opslaan mislukt:', e.message); }
   document.getElementById('wa-status-area').innerHTML = `
     <div class="wa-status waiting">
       <i class="fa-brands fa-whatsapp" style="color:#25d366;font-size:18px"></i>
@@ -806,12 +815,28 @@ function simulateScan() {
   }, 2000);
 }
 
-function slaKlantOp() {
-  const naam = document.getElementById('f-voornaam').value + ' ' + document.getElementById('f-achternaam').value;
-  const plate = document.getElementById('f-plate').value;
-  if (!naam.trim() || naam.trim() === ' ') { showToast('Vul de naam in'); return; }
-  showToast('Klant ' + naam.trim() + ' opgeslagen!');
-  closeModal('modalNieuweKlant');
+async function slaKlantOp() {
+  const voornaam = document.getElementById('f-voornaam').value.trim();
+  const achternaam = document.getElementById('f-achternaam').value.trim();
+  if (!voornaam || !achternaam) { showToast('Vul voor- en achternaam in'); return; }
+  try {
+    const klant = await fetch('/api/klanten', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ voornaam, achternaam, telefoon: document.getElementById('f-tel').value, email: document.getElementById('f-email').value })
+    }).then(r => r.json());
+    const plate = document.getElementById('f-plate').value.trim();
+    if (plate) {
+      await fetch('/api/voertuigen', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ klant_id: klant.id, nummerplaat: plate, merk: document.getElementById('f-merk').value, model: document.getElementById('f-model').value, jaar: parseInt(document.getElementById('f-jaar').value)||null, vin: document.getElementById('f-vin').value, km_stand: parseInt(document.getElementById('f-km').value)||null })
+      });
+    }
+    showToast('Klant ' + voornaam + ' ' + achternaam + ' opgeslagen!');
+    closeModal('modalNieuweKlant');
+    laadDashboard(); laadKlanten(); laadVoertuigen();
+  } catch(e) { showToast('Fout bij opslaan: ' + e.message); }
 }
 
 // ============================================================
@@ -915,7 +940,90 @@ function showToast(msg) {
   setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
+// ============================================================
+// API DATA LADEN
+// ============================================================
+async function laadDashboard() {
+  try {
+    const s = await fetch('/api/dashboard/stats').then(r => r.json());
+    const stats = document.querySelectorAll('.stat-grid .stat .value');
+    if (stats[0]) stats[0].textContent = s.klanten;
+    if (stats[1]) stats[1].textContent = s.voertuigen;
+    if (stats[2]) stats[2].textContent = s.open;
+    if (stats[3]) stats[3].textContent = '€' + Math.round(s.omzet || 0);
+  } catch(e) { console.error('Dashboard stats laden mislukt', e); }
+}
+
+async function laadKlanten() {
+  try {
+    const klanten = await fetch('/api/klanten').then(r => r.json());
+    const tbody = document.querySelector('#section-klanten table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = klanten.map(k => `
+      <tr>
+        <td><b>${k.voornaam} ${k.achternaam}</b></td>
+        <td>${k.telefoon || '—'}</td>
+        <td>${k.email || '—'}</td>
+        <td>${k.voertuigen_count || 0}</td>
+        <td>${k.aangemaakt_op ? k.aangemaakt_op.split('T')[0] : '—'}</td>
+        <td><button class="btn btn-outline btn-sm">Bekijken</button></td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" style="color:var(--muted);text-align:center">Nog geen klanten</td></tr>';
+  } catch(e) { console.error('Klanten laden mislukt', e); }
+}
+
+async function laadVoertuigen() {
+  try {
+    const voertuigen = await fetch('/api/voertuigen').then(r => r.json());
+    const lijst = document.getElementById('voertuig-lijst');
+    if (!lijst) return;
+    if (!voertuigen.length) {
+      lijst.innerHTML = '<p style="color:var(--muted);padding:20px">Nog geen voertuigen</p>';
+      return;
+    }
+    lijst.innerHTML = voertuigen.map(v => {
+      const eigenaar = v.eigenaar || '—';
+      const km = v.km_stand ? v.km_stand.toLocaleString('nl-BE') : '—';
+      return `
+        <div class="vehicle-card" onclick="selecteerVoertuig('${v.nummerplaat}','${v.merk || ''} ${v.model || ''}','${v.jaar || ''}','${eigenaar}',${v.km_stand || 0},'${v.vin || ''}')">
+          <div class="plate">${v.nummerplaat}</div>
+          <div class="info">
+            <div class="model">${v.merk || ''} ${v.model || ''} — ${v.jaar || '—'}</div>
+            <div class="owner"><i class="fa-solid fa-user"></i> ${eigenaar} &nbsp;|&nbsp; ${km} km</div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();selecteerVoertuig('${v.nummerplaat}','${v.merk || ''} ${v.model || ''}','${v.jaar || ''}','${eigenaar}',${v.km_stand || 0},'${v.vin || ''}');showSection('onderhoud')">
+            <i class="fa-solid fa-wrench"></i> Onderhoud
+          </button>
+        </div>
+      `;
+    }).join('');
+  } catch(e) { console.error('Voertuigen laden mislukt', e); }
+}
+
+async function laadOpdrachten() {
+  try {
+    const opdrachten = await fetch('/api/werkopdrachten').then(r => r.json());
+    const tbody = document.querySelector('#section-dashboard .card:nth-child(2) table tbody');
+    if (!tbody) return;
+    const statusBadge = s => ({open:'badge-blue',bezig:'badge-orange',klaar:'badge-green',geweigerd:'badge-gray'})[s] || 'badge-gray';
+    const statusLabel = s => ({open:'Open',bezig:'Bezig',klaar:'Klaar',geweigerd:'Geweigerd'})[s] || s;
+    tbody.innerHTML = opdrachten.slice(0, 5).map(o => `
+      <tr>
+        <td><span class="badge badge-orange">${o.nummerplaat || '—'}</span></td>
+        <td>${o.merk || ''} ${o.model || ''}</td>
+        <td>${o.klant || '—'}</td>
+        <td>${o.beschrijving || '—'}</td>
+        <td><span class="badge ${statusBadge(o.status)}">${statusLabel(o.status)}</span></td>
+      </tr>
+    `).join('') || '<tr><td colspan="5" style="color:var(--muted);text-align:center">Nog geen opdrachten</td></tr>';
+  } catch(e) { console.error('Opdrachten laden mislukt', e); }
+}
+
 // Init
+laadDashboard();
+laadKlanten();
+laadVoertuigen();
+laadOpdrachten();
 renderParts();
 </script>
 </body>
